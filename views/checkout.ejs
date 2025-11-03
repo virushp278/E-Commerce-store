@@ -1,0 +1,99 @@
+<%- include('./partials/head') %>
+<body>
+<%- include('./partials/nav') %>
+
+<div class="container py-5">
+  <h2 class="mb-4 text-center">Checkout</h2>
+
+  <form id="checkoutForm">
+    <!-- Delivery Address -->
+    <div class="mb-3">
+      <label class="form-label">Delivery Address</label>
+      <textarea class="form-control" name="address" id="address" placeholder="Enter your address" required></textarea>
+    </div>
+
+    <!-- Payment Method -->
+    <div class="mb-3">
+      <label class="form-label">Select Payment Method</label>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="paymentMode" value="cod" id="cod" checked>
+        <label class="form-check-label" for="cod">Cash on Delivery</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="paymentMode" value="razorpay" id="razorpay">
+        <label class="form-check-label" for="razorpay">Pay Online (UPI / Card / Netbanking)</label>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 btn-lg mt-3">Place Order</button>
+  </form>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const paymentMode = document.querySelector('input[name="paymentMode"]:checked').value;
+  const address = document.getElementById("address").value;
+
+  if (!address.trim()) return alert("Please enter your address.");
+
+  // For simplicity, you can later calculate this total from cart in backend.
+  const amount = 500; // test value, will be dynamic later
+
+  if (paymentMode === "cod") {
+    const res = await fetch("/order/place-cod", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, amount })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Order placed successfully (Cash on Delivery)");
+      window.location.href = "/order/success";
+    } else {
+      alert("❌ Error placing COD order");
+    }
+  } 
+  else if (paymentMode === "razorpay") {
+    // Create Razorpay order from backend
+    const res = await fetch("/order/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount })
+    });
+    const data = await res.json();
+
+    if (!data.success) return alert("Order creation failed!");
+
+    const options = {
+      key: "<%= process.env.RAZORPAY_KEY_ID %>",
+      amount: data.amount,
+      currency: data.currency,
+      name: "Your Store Name",
+      description: "Purchase Payment",
+      order_id: data.orderId,
+      handler: async function (response) {
+        await fetch("/order/verify-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...response, address })
+        });
+        alert("✅ Payment successful! Your order has been placed.");
+        window.location.href = "/order/success";
+      },
+      theme: {
+        color: "#0a74da"
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
+});
+</script>
+
+<%- include('./partials/script') %>
+</body>
+</html>

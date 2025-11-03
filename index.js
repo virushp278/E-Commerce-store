@@ -23,7 +23,7 @@ const { attachUser } = require("./services/attachUser");
 const { checkForAuthenticationCookie } = require("./middlewares/authentication");
 
 const app = express();
-const PORT = 8000;
+const port = process.env.PORT;
 
 const Product = require("./models/Product"); // adjust path if needed
 require('events').EventEmitter.defaultMaxListeners = 20;
@@ -93,4 +93,4 @@ app.use("/order", orderRouter);
 app.use("/cart", cartRoutes);
 app.use('/', homeRoutes);
 
-app.listen(PORT, () => console.log(`port started at ${PORT}`));
+app.listen(port, () => console.log(`port started at ${port}`));
