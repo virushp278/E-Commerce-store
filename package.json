@@ -1,15 +1,24 @@
 {
   "name": "e-commerrce-store",
   "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/virushp278/E-Commerce-store#readme",
+  "bugs": {
+    "url": "https://github.com/virushp278/E-Commerce-store/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/virushp278/E-Commerce-store.git"
+  },
+  "license": "ISC",
+  "author": "Harsh Chauhan",
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "ejs": "^3.1.10",
