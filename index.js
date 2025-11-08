@@ -32,6 +32,9 @@ mongoose.connect("mongodb://localhost:27017/ecommerce").then((e) => console.log(
 app.set("view engine", "ejs");
 app.set("views", path.resolve("./views"));
 
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
+
 app.use(session({
     secret: "IAMABIGMAN",
     resave: false,
@@ -39,7 +42,7 @@ app.use(session({
     cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
 }));
 
-app.use(express.urlencoded({ extended: true }));
+
 app.use(cookieParser());
 app.use(checkForAuthenticationCookie("token"));
 app.use(express.static(path.resolve('./public')))

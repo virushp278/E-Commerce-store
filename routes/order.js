@@ -4,7 +4,11 @@ const Order = require("../models/order");
 const Product = require("../models/Product");
 const User = require("../models/user");
 const { requireUser } = require("../services/authentication");
-const razorpay = require("..services/razorpay");
+const razorpay = require("../services/razorpay")
+
+
+router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
 
 // ------------------ Place a new order ------------------
 router.post("/buy", requireUser, async (req, res) => {
@@ -91,7 +95,8 @@ router.get("/checkout", requireUser, async (req, res) => {
 router.get("/your-orders", requireUser, async (req, res) => {
     try {
         const orders = await Order.find({ buyer: req.user._id })
-            .populate("product")
+            .populate("items.product")
+            .populate("items.merchant")
             .sort({ placedAt: -1 });
 
         res.render("user-orders", {
@@ -155,18 +160,50 @@ router.post("/create-order", async (req, res) => {
  // ------------------ Cash on Delivery ------------------
 router.post("/place-cod", requireUser, async (req, res) => {
   try {
-    const { address, amount } = req.body;
-    // Create order document directly
-    const order = new Order({
+    const { selectedAddress } = req.body;
+
+    const user = await User.findById(req.user._id).populate("cart.product");
+
+    if (!user || !user.cart.length) {
+      return res.json({ success: false, message: "Cart is empty" });
+    }
+
+    // ✅ CART → order.items
+    const items = user.cart.map((item) => ({
+      product: item.product._id,
+      merchant: item.product.createdBy, // merchant from product
+      quantity: item.quantity,
+      price: item.product.price
+    }));
+
+    const totalAmount = items.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0
+    );
+
+    const address = user.addresses[selectedAddress];
+    if (!address) return res.json({ success: false, message: "No address found" });
+
+    // ✅ Create new order
+    const order = await Order.create({
       buyer: req.user._id,
-      totalAmount: amount,
+      items,
+      totalAmount,
       paymentMethod: "COD",
       paymentStatus: "Pending",
-      shippingAddress: address,
+      shippingAddress: address
     });
-    await order.save();
 
-    res.json({ success: true, message: "COD order placed successfully" });
+    // ✅ Clear cart
+    user.cart = [];
+    await user.save();
+
+    return res.json({
+      success: true,
+      orderId: order._id,
+      message: "COD order placed successfully"
+    });
+
   } catch (err) {
     console.error("Error placing COD order:", err);
     res.status(500).json({ success: false });
@@ -174,24 +211,32 @@ router.post("/place-cod", requireUser, async (req, res) => {
 });
 
 
+
+
 // ------------------ Razorpay Online Payment ------------------
 router.post("/create-razorpay", requireUser, async (req, res) => {
   try {
-    const { amount } = req.body;
+    const user = await User.findById(req.user._id).populate("cart.product");
+    if (!user || !user.cart.length) {
+      return res.json({ success: false, message: "Cart is empty" });
+    }
+
+    const totalAmount =
+      user.cart.reduce((sum, item) => sum + item.quantity * item.product.price, 0);
 
     const options = {
-      amount: amount * 100, // paise
+      amount: totalAmount * 100,     // Razorpay takes paise
       currency: "INR",
-      receipt: "receipt_" + Date.now(),
+      receipt: "order_" + Date.now(),
     };
 
-    const order = await razorpay.orders.create(options);
+    const razorOrder = await razorpay.orders.create(options);
 
-    res.json({
+    return res.json({
       success: true,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
+      orderId: razorOrder.id,
+      amount: razorOrder.amount,
+      currency: razorOrder.currency
     });
   } catch (err) {
     console.error("Error creating Razorpay order:", err);
@@ -202,32 +247,63 @@ router.post("/create-razorpay", requireUser, async (req, res) => {
 
 // ------------------ Verify Payment ------------------
 const crypto = require("crypto");
-
 router.post("/verify-payment", requireUser, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, address } = req.body;
+    console.log("verify body:", req.body);
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      selectedAddress
+    } = req.body;
+
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_ID_SECRET)
+      .createHmac("sha256", process.env.RAZORPAY_KEY_ID_SECRET) // ✅ FIX
       .update(sign.toString())
       .digest("hex");
 
-    if (expectedSign === razorpay_signature) {
-      // payment verified → save order
-      const order = new Order({
-        buyer: req.user._id,
-        totalAmount: 500, // dynamic later
-        paymentMethod: "Online",
-        paymentStatus: "Paid",
-        shippingAddress: address,
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-      });
-      await order.save();
-      res.json({ success: true });
-    } else {
-      res.json({ success: false, message: "Invalid signature" });
+    if (expectedSign !== razorpay_signature) {
+      return res.json({ success: false, message: "Payment verification failed" });
     }
+
+    const user = await User.findById(req.user._id).populate("cart.product");
+
+    if (!user || !user.cart.length) {
+      return res.json({ success: false, message: "Cart empty" });
+    }
+
+    const address = user.addresses[selectedAddress];
+    if (!address)
+      return res.json({ success: false, message: "Invalid address" });
+
+    const items = user.cart.map((item) => ({
+      product: item.product._id,
+      merchant: item.product.createdBy,
+      quantity: item.quantity,
+      price: item.product.price,
+    }));
+
+    const totalAmount = items.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0
+    );
+
+    const order = await Order.create({
+      buyer: req.user._id,
+      items,
+      totalAmount,
+      paymentMethod: "ONLINE",
+      paymentStatus: "Paid",
+      shippingAddress: address,
+      razorpayOrderId: razorpay_order_id,
+    });
+
+    user.cart = [];
+    await user.save();
+
+    return res.json({ success: true, order });
   } catch (err) {
     console.error("Payment verification error:", err);
     res.status(500).json({ success: false });
@@ -235,4 +311,5 @@ router.post("/verify-payment", requireUser, async (req, res) => {
 });
 
 
+console.log("Order ==>", Order);
 module.exports = router;

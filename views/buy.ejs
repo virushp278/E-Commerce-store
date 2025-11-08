@@ -14,85 +14,183 @@
         <div class="alert alert-info">No products selected for purchase.</div>
         <a href="/products" class="btn btn-primary">Continue Shopping</a>
     <% } else { %>
-        <form id="checkoutForm" method="POST">
-            
-            <% items.forEach(item => { %>
-                <div class="card mb-4">
-                    <div class="card-body d-flex">
-                        <img src="<%= item.ProductImage || item.image %>" 
-                             alt="<%= item.productName || item.name %>" 
-                             class="me-3" style="width:100px; height:100px; object-fit:cover; border-radius:8px;">
-                        <div>
-                            <h5><%= item.productName || item.name %></h5>
-                            <p>Price: ₹<%= item.price %></p>
-                            <div class="d-flex align-items-center">
-                                <label class="me-2">Quantity:</label>
-                                <input type="number" name="quantity" value="<%= item.quantity || 1 %>" min="1" class="form-control w-25">
-                            </div>
+
+    <form id="checkoutForm">
+
+        <% items.forEach(item => { %>
+            <div class="card mb-4">
+                <div class="card-body d-flex">
+                    <img src="<%= item.ProductImage || item.image %>" 
+                         alt="<%= item.productName || item.name %>" 
+                         class="me-3" 
+                         style="width:100px; height:100px; object-fit:cover; border-radius:8px;">
+
+                    <div>
+                        <h5><%= item.productName || item.name %></h5>
+                        <p>Price: ₹<%= item.price %></p>
+
+                        <div class="d-flex align-items-center">
+                            <label class="me-2">Quantity:</label>
+                            <input type="number" 
+                                   name="quantity" 
+                                   value="<%= item.quantity || 1 %>" 
+                                   min="1" 
+                                   class="form-control w-25">
                         </div>
                     </div>
-                    <input type="hidden" name="productId" value="<%= item._id || item.productId %>">
                 </div>
-            <% }) %>
 
-            <!-- Address Section -->
-            <% if (user.addresses && user.addresses.length > 0) { %>
-                <div class="mb-4">
-                    <h5>Select Shipping Address</h5>
-                    <% user.addresses.forEach((addr, index) => { %>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="selectedAddress" value="<%= index %>" id="addr<%= index %>">
-                            <label class="form-check-label" for="addr<%= index %>">
-                                <%= addr.street %>, <%= addr.city %>, <%= addr.state %>, <%= addr.zipCode %>, <%= addr.country %>
-                                <% if (addr.landmark) { %> (Landmark: <%= addr.landmark %>) <% } %>
-                            </label>
-                        </div>
-                    <% }) %>
-                </div>
-            <% } %>
+                <input type="hidden" name="productId" value="<%= item._id || item.productId %>">
+                <input type="hidden" name="price" value="<%= item.price %>">
+                <input type="hidden" name="quantity" value="<%= item.quantity || 1 %>">
+            </div>
+        <% }) %>
 
+        <!-- Address Section -->
+        <% if (user.addresses && user.addresses.length > 0) { %>
             <div class="mb-4">
-                <a href="/user/add-address" class="btn btn-outline-primary">Add New Address</a>
+                <h5>Select Shipping Address</h5>
+
+                <% user.addresses.forEach((addr, index) => { %>
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="radio" 
+                               name="selectedAddress" 
+                               value="<%= index %>" 
+                               id="addr<%= index %>" required>
+
+                        <label class="form-check-label" for="addr<%= index %>">
+                            <%= addr.street %>, <%= addr.city %>, <%= addr.state %>, <%= addr.zipCode %>, <%= addr.country %>
+                            <% if (addr.landmark) { %> 
+                                (Landmark: <%= addr.landmark %>) 
+                            <% } %>
+                        </label>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+
+        <div class="mb-4">
+            <a href="/user/add-address" class="btn btn-outline-primary">Add New Address</a>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="mb-4">
+            <h5>Select Payment Method</h5>
+
+            <div class="form-check">
+                <input class="form-check-input" 
+                       type="radio" 
+                       name="paymentMode" 
+                       value="COD" 
+                       id="cod" 
+                       checked>
+                <label class="form-check-label" for="cod">Cash on Delivery</label>
             </div>
 
-            <!-- Payment Method -->
-            <div class="mb-4">
-                <h5>Select Payment Method</h5>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="paymentMode" value="COD" id="cod" checked>
-                    <label class="form-check-label" for="cod">Cash on Delivery</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="paymentMode" value="UPI" id="upi">
-                    <label class="form-check-label" for="upi">UPI (Razorpay)</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="paymentMode" value="CARD" id="card">
-                    <label class="form-check-label" for="card">Card (Pay Later)</label>
-                </div>
+            <div class="form-check">
+                <input class="form-check-input" 
+                       type="radio" 
+                       name="paymentMode" 
+                       value="UPI" 
+                       id="upi">
+                <label class="form-check-label" for="upi">UPI (Razorpay)</label>
             </div>
 
-            <button class="btn btn-success mt-3" type="submit">Confirm & Proceed to Payment</button>
-        </form>
+            <div class="form-check">
+                <input class="form-check-input" 
+                       type="radio" 
+                       name="paymentMode" 
+                       value="CARD" 
+                       id="card">
+                <label class="form-check-label" for="card">Card (Pay Later)</label>
+            </div>
+        </div>
+
+        <button class="btn btn-success mt-3" type="submit">
+            Confirm & Proceed to Payment
+        </button>
+    </form>
+
     <% } %>
 </div>
 
 <%- include('./partials/script') %>
 
+<!-- Razorpay -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 <script>
-document.getElementById("checkoutForm").addEventListener("submit", function (e) {
+document.getElementById("checkoutForm").addEventListener("submit", async function (e) {
     e.preventDefault();
 
     const paymentMode = document.querySelector('input[name="paymentMode"]:checked').value;
+    const selectedAddress = document.querySelector('input[name="selectedAddress"]:checked')?.value;
 
-    if (paymentMode === "COD") {
-        this.action = "/order/place-cod"; // ✅ matches router.post("/place-cod")
-    } else {
-        this.action = "/order/create-razorpay"; // ✅ matches router.post("/create-razorpay")
+    if (!selectedAddress) {
+        return alert("❌ Please select an address");
     }
 
-    console.log("Form action set to:", this.action);
-    this.submit();
-});
+    // ✅ COD → Normal submit
+    if (paymentMode === "COD") {
+        this.action = "/order/place-cod";
+        this.method = "POST";
+        this.submit();
+        return;
+    }
 
+    /* ✅ ONLINE PAYMENT (UPI/CARD) → Razorpay */
+    try {
+        const res = await fetch("/order/create-razorpay", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            alert("Failed to create Razorpay order");
+            return;
+        }
+
+        const options = {
+            key: "<%= process.env.RAZORPAY_KEY_ID %>",
+            amount: data.amount,
+            currency: data.currency,
+            order_id: data.orderId,
+            name: "My Store",
+            description: "Order Payment",
+
+            handler: async function (response) {
+
+                const verifyRes = await fetch("/order/verify-payment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        selectedAddress
+                    })
+                });
+
+                const verifyData = await verifyRes.json();
+
+                if (verifyData.success) {
+                    alert("✅ Payment Successful!");
+                    window.location.href = "/order/your-orders";
+                } else {
+                    alert("❌ Payment verification failed");
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+
+    } catch (err) {
+        console.error(err);
+        alert("Something went wrong!");
+    }
+});
 </script>
